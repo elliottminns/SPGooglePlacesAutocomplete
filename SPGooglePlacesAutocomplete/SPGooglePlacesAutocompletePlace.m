@@ -72,13 +72,31 @@
     }];
 }
 
+- (void)resolveCoordinatesToPlacemark:(SPGooglePlacesPlacemarkResultBlock)block {
+    SPGooglePlacesPlaceDetailQuery *query = [[SPGooglePlacesPlaceDetailQuery alloc] initWithApiKey:self.key];
+    query.reference = self.reference;
+    [query fetchPlaceDetail:^(NSDictionary *placeDictionary, NSError *error) {
+        if (error) {
+            block(nil, nil, error);
+        } else {
+            CLLocationDegrees latitude = [placeDictionary[@"geometry"][@"location"][@"lat"] floatValue];
+            CLLocationDegrees longitude = [placeDictionary[@"geometry"][@"location"][@"lng"] floatValue];
+            CLLocation *location = [[CLLocation alloc] initWithLatitude:latitude longitude:longitude];
+            
+            [[self geocoder] reverseGeocodeLocation:location completionHandler:^(NSArray *placemarks, NSError *error) {
+                if (error) {
+                    block(nil, nil, error);
+                } else {
+                    CLPlacemark *placemark = [placemarks onlyObject];
+                    block(placemark, self.name, error);
+                }
+            }];
+        }
+    }];
+}
+
 - (void)resolveToPlacemark:(SPGooglePlacesPlacemarkResultBlock)block {
-    if (self.type == SPPlaceTypeGeocode) {
-        // Geocode places already have their address stored in the 'name' field.
-        [self resolveGecodePlaceToPlacemark:block];
-    } else {
-        [self resolveEstablishmentPlaceToPlacemark:block];
-    }
+    [self resolveCoordinatesToPlacemark:block];
 }
 
 
